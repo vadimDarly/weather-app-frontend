@@ -1,0 +1,7 @@
+<div>
+  <h2>{{ title }}</h2>
+  <div #chart></div>
+  <button (click)="!isSubscribe ? subscribeForWeatherAPI() : unSubscribeForWeatherAPI()">
+    {{!isSubscribe ? 'Subscribe' : 'Unsubscribe'}}
+  </button>
+</div>
