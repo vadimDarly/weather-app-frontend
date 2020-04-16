@@ -3,7 +3,6 @@ import {WeatherService} from './services/weather.service';
 import {WeatherDataInterface} from './models/weather.interface';
 import * as d3 from 'd3';
 import * as d3Shape from 'd3-shape';
-import {StockInterface} from './models/stok.interface';
 
 
 @Component({
@@ -20,26 +19,27 @@ export class AppComponent implements OnInit, OnDestroy, OnChanges {
   private lng: number;
   public isSubscribe = false;
   private subscribeInterval: any;
-  public tempData: StockInterface[] = [{date: '10:11:23', value: 3}, {date: '10:11:26', value: 7}, {date: '10:11:30', value: 11}];
-  public humidityData: StockInterface[] = [{date: '10:11:23', value: 23}, {date: '10:11:26', value: 17}, {date: '10:11:30', value: 54}];
+  public data: WeatherDataInterface[] = [{time: '10:11:23', temp: 3, humidity: 45}, {
+    time: '10:11:32',
+    temp: 3,
+    humidity: 46
+  }, {time: '10:11:37', temp: 2, humidity: 12}];
   public title = 'Weather Chart';
   private margin = {top: 20, right: 20, bottom: 30, left: 50};
-  private width: number;
-  private height: number;
-  private x: any;
-  private y: any;
+  private x;
+  private y;
   private svg: any;
-  private line: d3Shape.Line<[number, number]>;
   private svgElement: HTMLElement;
   private chartProps: any;
+  private tempLine: d3Shape.Line<[number, number]>;
+  private hubmitityLine: d3Shape.Line<[number, number]>;
 
   constructor(private weatherService: WeatherService) {
-    this.width = 900 - this.margin.left - this.margin.right;
-    this.height = 500 - this.margin.top - this.margin.bottom;
   }
 
   ngOnInit() {
     this.buildChart();
+    this.drawLine();
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -61,98 +61,76 @@ export class AppComponent implements OnInit, OnDestroy, OnChanges {
         this.isSubscribe = true;
         this.weatherService.getWeather(this.lat, this.lng).subscribe((res: WeatherDataInterface) => {
           if (res) {
-            this.tempData.push({
-              date: new Date(),
-              value: res.temp,
-            });
-            this.humidityData.push({
-              date: new Date(),
-              value: res.humidity,
-            });
+            this.data.push(res);
           }
         });
       }
+      this.drawLine();
     }, 3000);
   }
 
   buildChart() {
+    const width = 960 - this.margin.left - this.margin.right;
+    const height = 500 - this.margin.top - this.margin.bottom;
 
-    const parseTime = d3.timeParse('%H:%M:%');
+    const parseTime = d3.timeParse('%H:%M:%S');
+    this.x = d3.scaleTime().range([0, width]);
+    this.y = d3.scaleLinear().range([height, 0]);
 
-    this.tempData.forEach((d) => {
-      d.date = parseTime(d.date);
-      d.value = +d.value;
+    this.tempLine = d3.line()
+      .x((d) => {
+        return this.x(d.time);
+      })
+      .y((d) => {
+        return this.y(d.temp);
+      });
+
+    this.hubmitityLine = d3.line()
+      .x((d) => {
+        return this.x(d.time);
+      })
+      .y((d) => {
+        return this.y(d.humidity);
+      });
+
+    this.svg = d3.select('body').append('svg')
+      .attr('width', width + this.margin.left + this.margin.right)
+      .attr('height', height + this.margin.top + this.margin.bottom)
+      .append('g')
+      .attr('transform', 'translate(' + this.margin.left + ',' + this.margin.top + ')');
+
+    this.data.forEach((d) => {
+      d.time = parseTime(d.time);
     });
 
-    this.chartProps = {};
-
-    const margin = {top: 30, right: 20, bottom: 30, left: 50};
-    const width = 900 - margin.left - margin.right;
-    const height = 540 - margin.top - margin.bottom;
-
-    this.chartProps.x = d3.scaleTime().range([0, width]);
-    this.chartProps.y = d3.scaleLinear().range([height, 0]);
-
-    const xAxis = d3.axisBottom(this.chartProps.x); // date
-    const yAxis = d3.axisLeft(this.chartProps.y); // value
-
-    const tempLine = d3.line()
-      .x((d) => {
-        return this.chartProps.x(d.value);
-      })
-      .y((d) => {
-        return this.chartProps.y(d.date);
-      });
-
-    const humidityLine = d3.line()
-      .x((d) => {
-        return this.chartProps.x(d.value);
-      })
-      .y((d) => {
-        return this.chartProps.y(d.date);
-      });
-
-    const svg = d3.select(this.chartElement.nativeElement)
-      .append('svg')
-      .attr('width', width + margin.left + margin.right)
-      .attr('height', height + margin.top + margin.bottom)
-      .append('g')
-      .attr('transform', `translate(${margin.left},${margin.top})`);
-
-    this.chartProps.x.domain(d3.extent(this.tempData, (d) => {
-      return d.date;
+    this.x.domain(d3.extent(this.data, (d) => {
+      return d.time;
     }));
-    this.chartProps.y.domain([0, d3.max(this.tempData, (d) => {
-      return Math.max(d.value, d.value);
+
+    this.y.domain([0, d3.max(this.data, (d) => {
+      return Math.max(d.temp, d.humidity);
     })]);
 
-    svg.append('path')
-      .attr('class', 'line line1')
-      .style('stroke', 'black')
-      .style('fill', 'none')
-      .attr('d', tempLine(this.tempData));
+    this.svg.append('g')
+      .attr('transform', 'translate(0,' + height + ')')
+      .call(d3.axisBottom(this.x));
 
-    svg.append('path')
-      .attr('class', 'line line2')
-      .style('stroke', 'green')
-      .style('fill', 'none')
-      .attr('d', humidityLine(this.humidityData));
+    this.svg.append('g')
+      .call(d3.axisLeft(this.y));
+  }
 
-    svg.append('g')
-      .attr('class', 'x axis')
-      .attr('transform', `translate(0,${height})`)
-      .call(xAxis);
+  drawLine() {
+    this.svg.append('path')
+      .data([this.data])
+      .attr('class', 'line')
+      .style('stroke', 'blue')
+      .attr('d', this.tempLine);
 
-    svg.append('g')
-      .attr('class', 'y axis')
-      .call(yAxis);
-
-    // Setting the required objects in chartProps so they could be used to update the chart
-    this.chartProps.svg = svg;
-    this.chartProps.tempLine = tempLine;
-    this.chartProps.humidityLine = humidityLine;
-    this.chartProps.xAxis = xAxis;
-    this.chartProps.yAxis = yAxis;
+    this.svg.append('path')
+      .data([this.data])
+      .attr('class', 'line')
+      .style('stroke', 'red')
+      .attr('d', this.hubmitityLine);
   }
 
   unSubscribeForWeatherAPI(): void {
