@@ -19,18 +19,12 @@ export class AppComponent implements OnInit, OnDestroy, OnChanges {
   private lng: number;
   public isSubscribe = false;
   private subscribeInterval: any;
-  public data: WeatherDataInterface[] = [{time: '10:11:23', temp: 3, humidity: 45}, {
-    time: '10:11:32',
-    temp: 3,
-    humidity: 46
-  }, {time: '10:11:37', temp: 2, humidity: 12}];
+  public data: WeatherDataInterface[] = [];
   public title = 'Weather Chart';
   private margin = {top: 20, right: 20, bottom: 30, left: 50};
   private x;
   private y;
   private svg: any;
-  private svgElement: HTMLElement;
-  private chartProps: any;
   private tempLine: d3Shape.Line<[number, number]>;
   private hubmitityLine: d3Shape.Line<[number, number]>;
 
@@ -43,7 +37,7 @@ export class AppComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    console.log('changes', changes);
+    this.drawLine();
   }
 
   subscribeForWeatherAPI(): void {
